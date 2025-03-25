@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Certification Quiz Game</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        .container {
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        h1, h2 {
+            color: #2c3e50;
+            text-align: center;
+        }
+        .login-form, .quiz-selection, .quiz-container {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        input, button, select {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        .class-buttons {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .quiz-question {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+        .quiz-answers {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .answer-option {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .answer-option:hover {
+            background-color: #f0f0f0;
+        }
+        .answer-option input {
+            margin-right: 10px;
+        }
+        .correct {
+            color: #27ae60;
+            font-weight: bold;
+        }
+        .incorrect {
+            color: #e74c3c;
+        }
+        .submit-btn {
+            margin-top: 15px;
+        }
+        .quiz-progress {
+            text-align: center;
+            margin-bottom: 15px;
+        }
+        .back-btn {
+            background-color: #95a5a6;
+            margin-top: 15px;
+        }
+        .user-stats {
+            text-align: right;
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 id="main-title">Certification Quiz Game</h1>
+        
+        <!-- Login Form -->
+        <div id="login-section">
+            <h2>Login</h2>
+            <div class="login-form">
+                <input type="text" id="username" placeholder="Username">
+                <input type="password" id="password" placeholder="Password">
+                <button id="login-btn">Login</button>
+                <p id="login-message"></p>
+            </div>
+        </div>
+        
+        <!-- Quiz Selection -->
+        <div id="selection-section" class="hidden">
+            <div class="user-stats">
+                <p>Welcome, <span id="user-display"></span>!</p>
+                <p>Experience: <span id="experience-display">0</span></p>
+                <p>Highscore: <span id="highscore-display">0</span></p>
+            </div>
+            
+            <h2>Select a Class</h2>
+            <div class="quiz-selection">
+                <div class="class-buttons" id="class-buttons">
+                    <!-- Class buttons will be generated here -->
+                </div>
+                <button id="random-quiz-btn" class="submit-btn">Random Quiz (All Classes)</button>
+                <button id="logout-btn" class="back-btn">Logout</button>
+            </div>
+        </div>
+        
+        <!-- Quiz Container -->
+        <div id="quiz-section" class="hidden">
+            <div class="quiz-progress">
+                <p>Question <span id="current-question">1</span> of <span id="total-questions">10</span></p>
+                <p>Score: <span id="current-score">0</span></p>
+            </div>
+            
+            <div class="quiz-container">
+                <div class="quiz-question" id="question-text"></div>
+                <div class="quiz-answers" id="answers-container">
+                    <!-- Answer options will be generated here -->
+                </div>
+                <button id="submit-answer" class="submit-btn">Potrdi</button>
+                <button id="back-to-classes" class="back-btn">Back to Classes</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initial empty data - will be loaded from JSON
+        let coursesData = {};
+
+        // Initial empty users data - will be loaded
+        let usersData = {};
+
+        // Application state
+        let currentUser = null;
+        let currentClass = null;
+        let currentQuestions = [];
+        let currentQuestionIndex = 0;
+        let currentScore = 0;
+        let isRandomQuiz = false;
+
+        // DOM elements - changed from const to let to allow reassignment
+        let loginSection = document.getElementById('login-section');
+        let selectionSection = document.getElementById('selection-section');
+        let quizSection = document.getElementById('quiz-section');
+        let mainTitle = document.getElementById('main-title');
+        
+        let usernameInput = document.getElementById('username');
+        let passwordInput = document.getElementById('password');
+        let loginBtn = document.getElementById('login-btn');
+        let loginMessage = document.getElementById('login-message');
+        
+        let userDisplay = document.getElementById('user-display');
+        let experienceDisplay = document.getElementById('experience-display');
+        let highscoreDisplay = document.getElementById('highscore-display');
+        let classButtons = document.getElementById('class-buttons');
+        let randomQuizBtn = document.getElementById('random-quiz-btn');
+        let logoutBtn = document.getElementById('logout-btn');
+        
+        let questionText = document.getElementById('question-text');
+        let answersContainer = document.getElementById('answers-container');
+        let submitAnswerBtn = document.getElementById('submit-answer');
+        let backToClassesBtn = document.getElementById('back-to-classes');
+        let currentQuestionEl = document.getElementById('current-question');
+        let totalQuestionsEl = document.getElementById('total-questions');
+        let currentScoreEl = document.getElementById('current-score');
+
+        // Initialize the application
+        function init() {
+            generateClassButtons();
+            resetQuizSection(); // Make sure quiz section is properly set up initially
+            attachEventListeners();
+        }
+        
+        // Reset the quiz section to its original state and update DOM references
+        function resetQuizSection() {
+            quizSection.innerHTML = `
+                <div class="quiz-progress">
+                    <p>Question <span id="current-question">1</span> of <span id="total-questions">10</span></p>
+                    <p>Score: <span id="current-score">0</span></p>
+                </div>
+                
+                <div class="quiz-container">
+                    <div class="quiz-question" id="question-text"></div>
+                    <div class="quiz-answers" id="answers-container">
+                        <!-- Answer options will be generated here -->
+                    </div>
+                    <button id="submit-answer" class="submit-btn">Potrdi</button>
+                    <button id="back-to-classes" class="back-btn">Back to Classes</button>
+                </div>
+            `;
+            
+            // Update all DOM references to the quiz elements
+            questionText = document.getElementById('question-text');
+            answersContainer = document.getElementById('answers-container');
+            submitAnswerBtn = document.getElementById('submit-answer');
+            backToClassesBtn = document.getElementById('back-to-classes');
+            currentQuestionEl = document.getElementById('current-question');
+            totalQuestionsEl = document.getElementById('total-questions');
+            currentScoreEl = document.getElementById('current-score');
+            
+            // Re-attach event listeners
+            submitAnswerBtn.addEventListener('click', checkAnswer);
+            backToClassesBtn.addEventListener('click', backToClasses);
+        }
+
+        // Generate class buttons based on available classes
+        function generateClassButtons() {
+            classButtons.innerHTML = '';
+            Object.keys(coursesData).forEach(className => {
+                const button = document.createElement('button');
+                button.textContent = className;
+                button.dataset.class = className;
+                button.classList.add('class-button');
+                classButtons.appendChild(button);
+            });
+        }
+
+        // Attach event listeners to elements
+        function attachEventListeners() {
+            // Login
+            loginBtn.addEventListener('click', handleLogin);
+            
+            // Class selection
+            classButtons.addEventListener('click', e => {
+                if (e.target.classList.contains('class-button')) {
+                    startClassQuiz(e.target.dataset.class);
+                }
+            });
+            
+            randomQuizBtn.addEventListener('click', startRandomQuiz);
+            logoutBtn.addEventListener('click', handleLogout);
+            
+            // Quiz
+            submitAnswerBtn.addEventListener('click', checkAnswer);
+            backToClassesBtn.addEventListener('click', backToClasses);
+        }
+
+        // Handle login functionality
+        function handleLogin() {
+            const username = usernameInput.value.trim();
+            const password = passwordInput.value;
+            
+            if (usersData[username] && usersData[username].password === password) {
+                currentUser = username;
+                updateUserStats();
+                
+                loginSection.classList.add('hidden');
+                selectionSection.classList.remove('hidden');
+                
+                // Clear login inputs
+                usernameInput.value = '';
+                passwordInput.value = '';
+                loginMessage.textContent = '';
+            } else {
+                loginMessage.textContent = 'Invalid username or password';
+                loginMessage.style.color = 'red';
+            }
+        }
+
+        // Handle logout
+        function handleLogout() {
+            currentUser = null;
+            selectionSection.classList.add('hidden');
+            loginSection.classList.remove('hidden');
+        }
+
+        // Update user stats display
+        function updateUserStats() {
+            userDisplay.textContent = currentUser;
+            experienceDisplay.textContent = usersData[currentUser].experience;
+            highscoreDisplay.textContent = usersData[currentUser].highscore;
+        }
+
+        // Start a quiz for a specific class
+        function startClassQuiz(className) {
+            currentClass = className;
+            isRandomQuiz = false;
+            
+            // Update the title to show the class name
+            mainTitle.textContent = className;
+            
+            // Get questions for the current class
+            currentQuestions = [];
+            Object.entries(coursesData[className]).forEach(([question, answers]) => {
+                currentQuestions.push({
+                    question,
+                    answers: [...answers] // Create a copy to avoid modifying the original
+                });
+            });
+            
+            startQuiz();
+        }
+
+        // Start a random quiz from all classes
+        function startRandomQuiz() {
+            isRandomQuiz = true;
+            currentClass = 'random';
+            
+            // Update the title to show this is a random quiz
+            mainTitle.textContent = "Random Quiz (All Classes)";
+            
+            // Get questions from all classes (maximum 40)
+            currentQuestions = [];
+            Object.entries(coursesData).forEach(([className, classQuestions]) => {
+                Object.entries(classQuestions).forEach(([question, answers]) => {
+                    currentQuestions.push({
+                        question,
+                        answers: [...answers], // Create a copy to avoid modifying the original
+                        class: className
+                    });
+                });
+            });
+            
+            // Shuffle and limit to 40 questions
+            shuffleArray(currentQuestions);
+            if (currentQuestions.length > 40) {
+                currentQuestions = currentQuestions.slice(0, 40);
+            }
+            
+            startQuiz();
+        }
+
+        // Start the quiz with the current questions
+        function startQuiz() {
+            currentQuestionIndex = 0;
+            currentScore = 0;
+            
+            // Reset quiz section to ensure clean state
+            resetQuizSection();
+            
+            selectionSection.classList.add('hidden');
+            quizSection.classList.remove('hidden');
+            
+            totalQuestionsEl.textContent = currentQuestions.length;
+            displayQuestion();
+        }
+
+        // Display the current question and answers
+        function displayQuestion() {
+            if (currentQuestionIndex >= currentQuestions.length) {
+                endQuiz();
+                return;
+            }
+            
+            const questionData = currentQuestions[currentQuestionIndex];
+            
+            // Update UI elements
+            currentQuestionEl.textContent = currentQuestionIndex + 1;
+            currentScoreEl.textContent = currentScore;
+            
+            // Set question text
+            questionText.textContent = questionData.question;
+            
+            // Shuffle answers for display
+            const shuffledAnswers = [...questionData.answers];
+            shuffleArray(shuffledAnswers);
+            
+            // Generate answer options
+            answersContainer.innerHTML = '';
+            shuffledAnswers.forEach((answer, index) => {
+                const answerOption = document.createElement('label');
+                answerOption.classList.add('answer-option');
+                
+                const radio = document.createElement('input');
+                radio.type = 'radio';
+                radio.name = 'answer';
+                radio.value = answer;
+                radio.id = `answer${index}`;
+                
+                const answerText = document.createTextNode(answer);
+                
+                answerOption.appendChild(radio);
+                answerOption.appendChild(answerText);
+                answersContainer.appendChild(answerOption);
+            });
+            
+            // Make sure submit button is enabled
+            if (submitAnswerBtn) {
+                submitAnswerBtn.disabled = false;
+            }
+        }
+
+        // Check the selected answer
+        function checkAnswer() {
+            const selectedAnswer = document.querySelector('input[name="answer"]:checked');
+            
+            if (!selectedAnswer) {
+                alert('Please select an answer!');
+                return;
+            }
+            
+            const correctAnswer = currentQuestions[currentQuestionIndex].answers[0];
+            const isCorrect = selectedAnswer.value === correctAnswer;
+            
+            // Highlight answers
+            const answerOptions = document.querySelectorAll('.answer-option');
+            answerOptions.forEach(option => {
+                const radio = option.querySelector('input');
+                
+                if (radio.value === correctAnswer) {
+                    option.classList.add('correct');
+                } else {
+                    option.classList.add('incorrect');
+                }
+                
+                // Disable radio buttons
+                radio.disabled = true;
+            });
+            
+            // Update score if answer is correct
+            if (isCorrect) {
+                currentScore++;
+                currentScoreEl.textContent = currentScore;
+                
+                // Update user experience
+                usersData[currentUser].experience++;
+                experienceDisplay.textContent = usersData[currentUser].experience;
+            }
+            
+            // Disable submit button
+            submitAnswerBtn.disabled = true;
+            
+            // Move to next question after 3 seconds
+            setTimeout(() => {
+                currentQuestionIndex++;
+                submitAnswerBtn.disabled = false;
+                
+                if (currentQuestionIndex < currentQuestions.length) {
+                    displayQuestion();
+                } else {
+                    endQuiz();
+                }
+            }, 3000);
+        }
+
+        // End the quiz and show results
+        function endQuiz() {
+            // Update highscore if this is a random quiz and score is higher
+            if (isRandomQuiz && currentScore > usersData[currentUser].highscore) {
+                usersData[currentUser].highscore = currentScore;
+                highscoreDisplay.textContent = currentScore;
+            }
+            
+            // Save user data
+            saveUsersData();
+            
+            // Show result
+            quizSection.innerHTML = `
+                <div class="quiz-progress">
+                    <h2>Quiz Completed!</h2>
+                    <p>Your score: ${currentScore} out of ${currentQuestions.length}</p>
+                    <p>Experience gained: +${currentScore}</p>
+                    ${isRandomQuiz && currentScore > usersData[currentUser].highscore - currentScore ? 
+                        `<p>New highscore: ${currentScore}!</p>` : ''}
+                    <button id="back-to-classes-end" class="submit-btn">Back to Classes</button>
+                </div>
+            `;
+            
+            // Add event listener to the "Back to Classes" button
+            document.getElementById('back-to-classes-end').addEventListener('click', function() {
+                quizSection.classList.add('hidden');
+                selectionSection.classList.remove('hidden');
+                
+                // Reset title to original
+                mainTitle.textContent = "Certification Quiz Game";
+                
+                // Reset quiz section for next quiz
+                resetQuizSection();
+            });
+        }
+
+        // Return to class selection
+        function backToClasses() {
+            quizSection.classList.add('hidden');
+            selectionSection.classList.remove('hidden');
+            
+            // Reset title to original
+            mainTitle.textContent = "Certification Quiz Game";
+            
+            // Reset quiz section to original state for next quiz
+            resetQuizSection();
+        }
+
+        // Utility function to shuffle an array
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        // Save users data to localStorage
+        function saveUsersData() {
+            localStorage.setItem('quiz_users', JSON.stringify(usersData));
+        }
+
+        // Load users data from localStorage or initialize with mock data
+        function loadUsersData() {
+            const storedData = localStorage.getItem('quiz_users');
+            if (storedData) {
+                usersData = JSON.parse(storedData);
+            } else {
+                // Initialize with mock users
+                usersData = {
+                    "luka": {
+                        "password": "123",
+                        "experience": 0,
+                        "highscore": 0
+                    },
+                    "test": {
+                        "password": "test",
+                        "experience": 10,
+                        "highscore": 5
+                    },
+                    "admin": {
+                        "password": "admin",
+                        "experience": 50,
+                        "highscore": 30
+                    }
+                };
+                // Save to localStorage
+                saveUsersData();
+            }
+        }
+
+        // Load courses data from JSON file
+        function loadCoursesData() {
+            // For demonstration, we'll mock the loading with hardcoded data
+            // In production, replace with actual fetch to your files
+            
+            // This simulates loading from a file
+            coursesData = {
+    "class_1": {
+        "What is HTML?": ["HyperText Markup Language", "High-Tech Modern Language", "Hyperlink Text Management Logic"],
+        "Which HTML tag is used to create a hyperlink?": ["<a>", "<link>", "<href>"],
+        "What does CSS stand for?": ["Cascading Style Sheets", "Computer Style Syntax", "Creative Style System"],
+        "Which property is used to change the background color in CSS?": ["background-color", "bgcolor", "color-background"],
+        "Which CSS property controls the text size?": ["font-size", "text-size", "font-height"]
+    },
+    "class_2": {
+        "Which keyword is used to declare a variable in JavaScript?": ["var, let, const", "variable", "v"],
+        "What is the correct way to write a JavaScript array?": ["const arr = [1, 2, 3]", "const arr = (1, 2, 3)", "const arr = 1, 2, 3"],
+        "How do you write 'Hello World' in an alert box?": ["alert('Hello World')", "msgBox('Hello World')", "msg('Hello World')"],
+        "How do you create a function in JavaScript?": ["function myFunction() {}", "create myFunction() {}", "function:myFunction() {}"],
+        "How do you call a function named 'myFunction'?": ["myFunction()", "call myFunction()", "call function myFunction()"]
+    },
+    "class_3": {
+        "What does API stand for?": ["Application Programming Interface", "Application Process Integration", "Advanced Programming Interface"],
+        "Which HTTP method is used to retrieve data?": ["GET", "POST", "PUT"],
+        "What format is commonly used for API data exchange?": ["JSON", "HTML", "CSS"],
+        "What is REST in the context of APIs?": ["Representational State Transfer", "Remote Endpoint Service Transfer", "Resource Exchange System Technology"],
+        "Which status code indicates a successful HTTP request?": ["200 OK", "404 Not Found", "500 Internal Server Error"]
+    },
+    "class_4": {
+        "Which SQL statement is used to extract data from a database?": ["SELECT", "GET", "EXTRACT"],
+        "Which SQL statement is used to update data in a database?": ["UPDATE", "MODIFY", "CHANGE"],
+        "What does SQL stand for?": ["Structured Query Language", "Simple Query Language", "Standard Query Language"],
+        "Which SQL keyword is used to filter records?": ["WHERE", "FILTER", "CONDITION"],
+        "Which SQL statement is used to delete data from a database?": ["DELETE", "REMOVE", "CLEAR"]
+    }
+            };
+            
+            // In a real implementation, you'd use:
+            // fetch('/courses/courses.json')
+            //     .then(response => response.json())
+            //     .then(data => {
+            //         coursesData = data;
+            //         generateClassButtons();
+            //     });
+        }
+
+        // Load saved data and initialize app
+        loadUsersData();
+        loadCoursesData(); 
+        // Wait a bit for data to load before initializing
+        setTimeout(init, 500);
+
+        // Save data before page unload
+        window.addEventListener('beforeunload', saveUsersData);
+    </script>
+</body>
+</html>
